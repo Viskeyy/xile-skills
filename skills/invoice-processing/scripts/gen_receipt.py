@@ -2,8 +2,8 @@
 """按模版生成报销申请单 .docx。
 
 用法:
-    python gen_receipt.py --data data.json --output out.docx
-    python gen_receipt.py --data data.json --output out.docx --template 其他模版.docx
+    python gen_receipt.py --data data.json --source-dir 源发票目录 --output out.docx
+    python gen_receipt.py --data data.json --source-dir 源发票目录 --output out.docx --template 其他模版.docx
 
 data.json 结构:
 {
@@ -26,13 +26,14 @@ import argparse
 import copy
 import json
 import os
+from pathlib import Path
 import sys
 
 from docx import Document
 from docx.oxml.ns import qn
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_TEMPLATE = os.path.join(SCRIPT_DIR, '..', 'templates', '报销申请单模版.docx')
+DEFAULT_TEMPLATE = os.path.join(SCRIPT_DIR, '..', 'assets', '报销申请单模版.docx')
 
 CATEGORY_NAMES = {
     '餐饮费': '餐饮费用',
@@ -104,9 +105,13 @@ def fill_para_text(p, text, rpr=None):
 def main():
     parser = argparse.ArgumentParser(description='按模版生成报销申请单')
     parser.add_argument('--data', required=True, help='数据 JSON 文件路径')
-    parser.add_argument('--output', required=True, help='输出 .docx 路径')
+    parser.add_argument('--source-dir', required=True, help='源发票目录; 生成文件直接写入该目录')
+    parser.add_argument('--output', required=True, help='输出文件名, 只能是当前目录下的 .docx 文件名')
     parser.add_argument('--template', default=DEFAULT_TEMPLATE, help='模版 .docx 路径')
     args = parser.parse_args()
+    if Path(args.output).name != args.output or Path(args.output).suffix.lower() != '.docx':
+        sys.exit('--output 必须是当前目录下的 .docx 文件名, 不得包含子目录')
+    output = os.path.join(args.source_dir, args.output)
 
     with open(args.data, encoding='utf-8') as f:
         data = json.load(f)
@@ -202,9 +207,9 @@ def main():
     for el in elements[start_idx:]:
         body.remove(el)
 
-    os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
-    doc.save(args.output)
-    print('已生成:', args.output)
+    os.makedirs(os.path.abspath(args.source_dir), exist_ok=True)
+    doc.save(output)
+    print('已生成:', output)
 
 
 if __name__ == '__main__':
