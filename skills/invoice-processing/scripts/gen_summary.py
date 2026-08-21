@@ -43,13 +43,15 @@ def amount(value, field):
         sys.exit('%s 不是有效金额: %r' % (field, value))
 
 
-def date_key(value):
+def date_key(value, field):
     text = str(value)
     match = re.search(r'(\d+)月(\d+)日', text)
     if match:
         return int(match.group(1)), int(match.group(2))
     match = re.search(r'(?:\d{4}[-/]?)?(\d{1,2})[-/](\d{1,2})', text)
-    return (int(match.group(1)), int(match.group(2))) if match else (float('inf'), float('inf'))
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    sys.exit('%s 无法解析: %r (支持 "7月6日" 或 "2026-07-06")' % (field, value))
 
 
 def validate(records):
@@ -61,6 +63,7 @@ def validate(records):
         if record['category'] not in CATEGORIES:
             sys.exit('第 %d 条记录类别无效: %s' % (i, record['category']))
         amount(record['amount'], '第 %d 条记录金额' % i)
+        date_key(record['date'], '第 %d 条记录日期' % i)
 
 
 def write_row(ws, row, values, styles):
@@ -80,6 +83,8 @@ def main():
     args = parser.parse_args()
     if Path(args.output).name != args.output or Path(args.output).suffix.lower() != '.xlsx':
         sys.exit('--output 必须是当前目录下的 .xlsx 文件名, 不得包含子目录')
+    if not os.path.isdir(args.source_dir):
+        sys.exit('--source-dir 不存在或不是目录: %s' % args.source_dir)
     output = os.path.join(args.source_dir, args.output)
 
     with open(args.data, encoding='utf-8') as f:
@@ -100,7 +105,7 @@ def main():
         for category in CATEGORIES:
             group = groups.get((name, category))
             if group:
-                group.sort(key=lambda r: (date_key(r['date']), amount(r['amount'], '金额'), str(r['number'])))
+                group.sort(key=lambda r: (date_key(r['date'], '日期'), amount(r['amount'], '金额'), str(r['number'])))
                 total = sum((amount(r['amount'], '金额') for r in group), Decimal(0))
                 ordered_groups.append((name, category, group, total))
 
@@ -138,9 +143,8 @@ def main():
             row += 1
         previous_name = name
 
-    os.makedirs(os.path.abspath(args.source_dir), exist_ok=True)
     wb.save(output)
-    print('已生成:', output)
+    print('已生成:', output, '| 合计:', '%.2f' % sum((total for _, _, _, total in ordered_groups), Decimal(0)))
 
 
 if __name__ == '__main__':
