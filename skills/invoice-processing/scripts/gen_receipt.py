@@ -30,7 +30,8 @@ from pathlib import Path
 import sys
 
 from docx import Document
-from docx.oxml.ns import qn
+from docx.oxml import parse_xml
+from docx.oxml.ns import nsdecls, qn
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_TEMPLATE = os.path.join(SCRIPT_DIR, '..', 'assets', '报销申请单模版.docx')
@@ -118,9 +119,19 @@ def to_cn_amount(value):
 TITLE_TEMPLATE = '（\u3000）'
 
 
-def run_rpr(el):
-    r = el.find(qn('w:r'))
-    return r.find(qn('w:rPr')) if r is not None else None
+def make_rpr(latin, east_asia, half_points):
+    """构造 run 格式。一个 rFonts 同时管中西文, Word 按字符所属文种自动分派。
+
+    half_points 是半磅: 小三 = 15pt = 30, 11pt = 22。
+    """
+    return parse_xml(
+        '<w:rPr %s><w:rFonts w:ascii="%s" w:hAnsi="%s" w:eastAsia="%s" w:hint="eastAsia"/>'
+        '<w:sz w:val="%s"/><w:szCs w:val="%s"/></w:rPr>'
+        % (nsdecls('w'), latin, latin, east_asia, half_points, half_points))
+
+
+HEADER_RPR = make_rpr('Calibri', '宋体', '30')  # 表头填充: 中文宋体 + 数字 Calibri, 小三
+ROW_RPR = make_rpr('宋体', '宋体', '22')  # 嵌套表数据行: 全宋体 11
 
 
 def fill_cell(el_cell, text, rpr=None):
@@ -227,7 +238,6 @@ def main():
 
     doc = Document(args.template)
     t0 = doc.tables[0]
-    ref_rpr = run_rpr(t0.cell(0, 0)._tc)
     cell = t0.rows[4].cells[1]
     tc = cell._tc
     nested = tc.findall(qn('w:tbl'))
@@ -240,13 +250,14 @@ def main():
             titles.setdefault(txt, el)
 
     # ---- 表头 ----
-    fill_cell(t0.rows[0].cells[1]._tc, data['name'], ref_rpr)
-    fill_cell(t0.rows[1].cells[1]._tc, data['date'], ref_rpr)
-    fill_cell(t0.rows[1].cells[3]._tc, total_text + '元', ref_rpr)
-    fill_cell(t0.rows[2].cells[1]._tc, total_cn, ref_rpr)
-    fill_cell(t0.rows[3].cells[1]._tc, data['name'], ref_rpr)
+    fill_cell(t0.rows[0].cells[1]._tc, data['name'], HEADER_RPR)
+    fill_cell(t0.rows[1].cells[1]._tc, data['date'], HEADER_RPR)
+    fill_cell(t0.rows[1].cells[3]._tc, total_text + '元', HEADER_RPR)
+    fill_cell(t0.rows[2].cells[1]._tc, total_cn, HEADER_RPR)
+    fill_cell(t0.rows[3].cells[1]._tc, data['name'], HEADER_RPR)
 
     # ---- 删除未使用的类别块, 填充保留的类别 (序号按模版中的排版顺序从 1 递增) ----
+    # 类别标题与共计费用沿用模版段落自身的格式, 故不传 rpr
     by_category = {item['category']: item for item in data['items']}
     order = 0
     for cat, idx in NESTED_INDEX.items():
@@ -260,13 +271,13 @@ def main():
             nested[idx].getparent().remove(nested[idx])
             continue
         order += 1
-        fill_para_text(title_el, '%d、%s（%s元）' % (order, CATEGORY_NAMES[cat], '%.2f' % money(item['total'], '类别合计')), ref_rpr)
-        fill_data(nested[idx], item['rows'], ref_rpr)
+        fill_para_text(title_el, '%d、%s（%s元）' % (order, CATEGORY_NAMES[cat], '%.2f' % money(item['total'], '类别合计')))
+        fill_data(nested[idx], item['rows'], ROW_RPR)
 
     # ---- 共计费用 ----
     if '共计费用：' not in titles:
         sys.exit('模版 %s 中找不到 "共计费用：" 段落, 可能是模版被改动' % args.template)
-    fill_para_text(titles['共计费用：'], '共计费用：' + total_text + '元', ref_rpr)
+    fill_para_text(titles['共计费用：'], '共计费用：' + total_text + '元')
 
     # ---- 删除 body 末尾的填写说明块及重复的审查段落 (按内容定位, 避免硬编码下标) ----
     body = doc.element.body
