@@ -9,7 +9,7 @@ data.json 结构:
   "month": "2026年7月",
   "records": [
     {
-      "name": "黄卉",
+      "name": "张三",
       "category": "差旅费",
       "number": "26378324211049524479",
       "date": "7月6日",
@@ -33,7 +33,7 @@ from openpyxl import load_workbook
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_TEMPLATE = os.path.join(SCRIPT_DIR, '..', 'assets', '月度汇总模版.xlsx')
-CATEGORIES = ('餐饮费', '办公费', '差旅费', '交通费', '快递费')
+CATEGORIES = ('餐饮费', '办公费', '差旅费', '交通费')
 
 
 def amount(value, field):

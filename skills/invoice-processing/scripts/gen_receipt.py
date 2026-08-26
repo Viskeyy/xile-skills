@@ -7,12 +7,12 @@
 
 data.json 结构:
 {
-  "name": "黄卉",                 // 姓名
+  "name": "张三",                 // 姓名
   "date": "2026-8-14",           // 生成日期
   "total": "4130.50",            // 总金额; 大写由脚本转换, 无需提供
   "items": [                     // 类别; 顺序任意, 排版顺序与序号由模版决定
     {
-      "category": "差旅费",      // 餐饮费 | 办公费 | 差旅费 | 交通费 | 快递费
+      "category": "差旅费",      // 餐饮费 | 办公费 | 差旅费 | 交通费
       "total": "3711.00",        // 该类合计
       "rows": [                  // 数据行: [序号, 日期, 金额, 单位, 说明]
         ["1", "6月19日", "940.00", "元", "机票 北京-厦门 SC2130"]
@@ -41,9 +41,8 @@ CATEGORY_NAMES = {
     '办公费': '办公费用',
     '差旅费': '差旅费用',
     '交通费': '交通费用',
-    '快递费': '快递费用',
 }
-NESTED_INDEX = {'餐饮费': 0, '办公费': 1, '差旅费': 2, '交通费': 3, '快递费': 4}
+NESTED_INDEX = {'餐饮费': 0, '办公费': 1, '差旅费': 2, '交通费': 3}
 
 CN_DIGITS = '零壹贰叁肆伍陆柒捌玖'
 CN_UNITS = ('', '拾', '佰', '仟')
@@ -89,8 +88,8 @@ def to_cn_amount(value):
 
     >>> to_cn_amount(Decimal('4130.50'))
     '肆仟壹佰叁拾元伍角'
-    >>> to_cn_amount(Decimal('1857.02'))  # 与 assets/ 中已完成示例逐字一致
-    '壹仟捌佰伍拾柒元零贰分'
+    >>> to_cn_amount(Decimal('1230.62'))  # 与 assets/ 中已完成示例逐字一致
+    '壹仟贰佰叁拾元陆角贰分'
     >>> to_cn_amount(Decimal('940.00'))
     '玖佰肆拾元整'
     >>> to_cn_amount(Decimal('4007.00'))
@@ -242,7 +241,7 @@ def main():
     tc = cell._tc
     nested = tc.findall(qn('w:tbl'))
     if len(nested) != len(NESTED_INDEX):
-        sys.exit('模版 %s 备注单元格内有 %d 个类别表, 预期 %d (餐饮/办公/差旅/交通/快递); 若模版被改动请先核对脚本 NESTED_INDEX' % (args.template, len(nested), len(NESTED_INDEX)))
+        sys.exit('模版 %s 备注单元格内有 %d 个类别表, 预期 %d (餐饮/办公/差旅/交通); 若模版被改动请先核对脚本 NESTED_INDEX' % (args.template, len(nested), len(NESTED_INDEX)))
     titles = {}
     for el in list(tc):
         if el.tag == qn('w:p'):
