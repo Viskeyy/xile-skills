@@ -30,7 +30,7 @@ from pathlib import Path
 import sys
 
 from docx import Document
-from docx.oxml import parse_xml
+from docx.oxml import OxmlElement, parse_xml
 from docx.oxml.ns import nsdecls, qn
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -131,6 +131,29 @@ def make_rpr(latin, east_asia, half_points):
 
 HEADER_RPR = make_rpr('Calibri', '宋体', '30')  # 表头填充: 中文宋体 + 数字 Calibri, 小三
 ROW_RPR = make_rpr('宋体', '宋体', '22')  # 嵌套表数据行: 全宋体 11
+
+# 备注明细表序号列 (第一列) 设 noWrap: autofit 布局下列宽随内容调整, 序号列不换行。
+# 其余列内容自然换行, 由 Word/WPS 按内容自动分配列宽。
+DETAIL_SEQ_COL = 0
+
+# insert_element_before 的后继元素: 元素缺失时按 _tag_seq 顺序插入, 已存在则原地修改
+_LAYOUT_SUCC = ('w:tblCellMar', 'w:tblLook', 'w:tblCaption', 'w:tblDescription')
+_NOWRAP_SUCC = ('w:tcMar', 'w:textDirection', 'w:tcFitText', 'w:vAlign', 'w:hideMark', 'w:headers')
+
+
+def normalize_detail_table(tbl_xml):
+    """备注明细表改为 autofit 布局, 列宽由内容决定; 序号列 noWrap 不换行。"""
+    tbl_pr = tbl_xml.tblPr
+    layout = tbl_pr.find(qn('w:tblLayout'))
+    if layout is None:
+        layout = OxmlElement('w:tblLayout')
+        tbl_pr.insert_element_before(layout, *_LAYOUT_SUCC)
+    layout.set(qn('w:type'), 'autofit')
+
+    for tr in tbl_xml.tr_lst:
+        tc_pr = tr.tc_lst[DETAIL_SEQ_COL].get_or_add_tcPr()
+        if tc_pr.find(qn('w:noWrap')) is None:
+            tc_pr.insert_element_before(OxmlElement('w:noWrap'), *_NOWRAP_SUCC)
 
 
 def fill_cell(el_cell, text, rpr=None):
@@ -242,6 +265,8 @@ def main():
     nested = tc.findall(qn('w:tbl'))
     if len(nested) != len(NESTED_INDEX):
         sys.exit('模版 %s 备注单元格内有 %d 个类别表, 预期 %d (餐饮/办公/差旅/交通); 若模版被改动请先核对脚本 NESTED_INDEX' % (args.template, len(nested), len(NESTED_INDEX)))
+    for detail_table in nested:
+        normalize_detail_table(detail_table)
     titles = {}
     for el in list(tc):
         if el.tag == qn('w:p'):
