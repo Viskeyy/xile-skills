@@ -1,6 +1,14 @@
 # invoice-processing
 
-发票识别与报销整理工具。将发票图片或 PDF 放入指定目录，自动完成识别、分类、排序，并生成报销申请单（.docx）及月度汇总表（.xlsx）。
+发票识别与报销整理工具。将发票图片或 PDF 放入指定目录结构中，调用该 skill，自动完成识别、分类、排序，并生成报销申请单（.docx）及月度汇总表（.xlsx）。
+
+## 效果预览
+
+处理前
+<img width="1784" height="1196" alt="img_v3_02150_ce700201-47aa-4990-b4fe-6243ebe3c84g" src="https://github.com/user-attachments/assets/76de56fd-32f1-450f-896c-5d7647af83c2" />
+
+处理后
+<img width="1786" height="1198" alt="img_v3_02150_262e0ef5-eeb5-4cda-b462-7e65a7a31a7g" src="https://github.com/user-attachments/assets/a5b18f20-5d2d-4710-8738-d879bd805d9d" />
 
 ## 目录结构
 
